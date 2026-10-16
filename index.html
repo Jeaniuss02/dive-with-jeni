@@ -176,6 +176,7 @@
   <button id="btnStart" class="btn">Start / 开始游戏</button>
   <button id="btnSound2" class="sndBtn" type="button">&#128266;</button>
   <div class="bestText" id="startBest">Best: 0 EXP</div>
+  <div class="bestText" id="verLine" style="opacity:.55;font-size:11px;margin-top:6px">v2 · 音乐版 music · 2026-10-15</div>
 </div>
 
 <div id="overScreen" class="screen hide">
@@ -2073,6 +2074,31 @@ window.addEventListener('blur', function () { for (const k in keys) keys[k] = fa
 document.getElementById('btnStart').addEventListener('click', startGame);
 document.getElementById('btnAgain').addEventListener('click', startGame);
 document.getElementById('btnHome').addEventListener('click', function () { ensureAudio(); showStart(); });
+
+// 任何第一次手势都尝试解锁音频, 并让 iOS 静音键不再屏蔽游戏声音
+// unlock audio on the first gesture anywhere, and stop the iPhone silent switch from muting the game
+let audioHintShown = false;
+function unlockAudio() {
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) { /* ignore */ }
+  try {
+    ensureAudio();
+    if (actx && actx.state !== 'running') {
+      const pr = actx.resume();
+      if (pr && pr.catch) pr.catch(function () { /* ignore */ });
+    }
+    if (soundOn && state === 'playing' && (!mus.playing || mus.mood === 'none')) musicStart();
+    if (actx && actx.state !== 'running' && state === 'playing' && !audioHintShown) {
+      audioHintShown = true;
+      const keep = elToast.textContent;
+      elToast.textContent = '点一下画面开启声音 · Tap the screen to enable sound';
+      retrigger(elToast, 'show');
+      setTimeout(function () { elToast.textContent = keep; }, 2600);
+    }
+  } catch (e) { /* ignore */ }
+}
+['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(function (t) {
+  document.addEventListener(t, unlockAudio, true);
+});
 for (let i = 0; i < elSnd.length; i++) {
   elSnd[i].addEventListener('click', function (ev) {
     toggleSound();
